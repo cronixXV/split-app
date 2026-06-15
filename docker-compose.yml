@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: splitapp
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d splitapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile.dev
+    volumes:
+      - ./server/src:/app/server/src
+      - ./shared/src:/app/shared/src
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgres://user:password@postgres:5432/splitapp
+      PORT: 3001
+      NODE_ENV: development
+      CLIENT_ORIGIN: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile.dev
+    volumes:
+      - ./client/src:/app/client/src
+      - ./shared/src:/app/shared/src
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+
+volumes:
+  pgdata:

@@ -1,7 +1,9 @@
+import { injectable } from 'tsyringe';
 import { IRoomEntity } from '../../domain/entities';
 import { IRoomRepository } from '../../domain/repositories';
 import { Room } from '../database/models';
 
+@injectable()
 export class RoomRepository implements IRoomRepository {
   async create(name: string): Promise<IRoomEntity> {
     const room = await Room.create({ name });

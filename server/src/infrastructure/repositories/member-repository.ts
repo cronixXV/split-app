@@ -1,7 +1,9 @@
 import { IMemberRepository } from '../../domain/repositories';
 import { IMemberEntity } from '../../domain/entities';
 import { Member } from '../database/models';
+import { injectable } from 'tsyringe';
 
+@injectable()
 export class MemberRepository implements IMemberRepository {
   async create(roomId: string, name: string): Promise<IMemberEntity> {
     const member = await Member.create({ roomId, name });
@@ -10,7 +12,7 @@ export class MemberRepository implements IMemberRepository {
 
   async findByRoomId(roomId: string): Promise<IMemberEntity[]> {
     const members = await Member.findAll({ where: { roomId } });
-    return members.map(this.toEntity);
+    return members.map(m => this.toEntity(m));
   }
 
   private toEntity(member: Member): IMemberEntity {

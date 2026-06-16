@@ -1,7 +1,9 @@
 import { IExpenseRepository } from '../../domain/repositories';
 import { IExpenseEntity } from '../../domain/entities';
 import { Expense } from '../database/models';
+import { injectable } from 'tsyringe';
 
+@injectable()
 export class ExpenseRepository implements IExpenseRepository {
   async create(
     data: Omit<IExpenseEntity, 'id' | 'createdAt'>
@@ -21,7 +23,7 @@ export class ExpenseRepository implements IExpenseRepository {
       where: { roomId },
       order: [['createdAt', 'ASC']],
     });
-    return expenses.map(this.toEntity);
+    return expenses.map(e => this.toEntity(e));
   }
 
   async findById(id: string): Promise<IExpenseEntity | null> {

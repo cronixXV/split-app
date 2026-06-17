@@ -10,6 +10,7 @@ import {
   minimizeTransfers,
 } from '../../domain/services/debt-service';
 import { inject, injectable } from 'tsyringe';
+import { NotFoundError } from '../errors';
 
 @injectable()
 export class GetRoomUseCase {
@@ -21,7 +22,9 @@ export class GetRoomUseCase {
 
   async execute(roomId: string): Promise<RoomDetails> {
     const room = await this.roomRepository.findById(roomId);
-    if (!room) throw new Error('Room not found');
+    if (!room) {
+      throw new NotFoundError('Room not found');
+    }
 
     const members = await this.memberRepository.findByRoomId(roomId);
     const expenses = await this.expenseRepository.findByRoomId(roomId);

@@ -1,6 +1,8 @@
 import { IMemberRepository, IRoomRepository } from '../../domain/repositories';
 import { IMemberEntity } from '../../domain/entities';
 import { inject, injectable } from 'tsyringe';
+import { MEMBER_NAME_MAX_LENGTH, MEMBER_NAME_MIN_LENGTH } from '@shared/types';
+import { NotFoundError, ValidationError } from '../errors';
 
 @injectable()
 export class AddMemberUseCase {
@@ -11,11 +13,24 @@ export class AddMemberUseCase {
 
   async execute(roomId: string, name: string): Promise<IMemberEntity> {
     const room = await this.roomRepository.findById(roomId);
-    if (!room) throw new Error('Room not found');
+    if (!room) {
+      throw new NotFoundError('Room not found');
+    }
 
-    const trimmed = name.trim();
-    if (!trimmed) throw new Error('Member name is required');
+    const normalizedName = name.trim();
 
-    return this.memberRepository.create(roomId, trimmed);
+    if (normalizedName.length < MEMBER_NAME_MIN_LENGTH) {
+      throw new ValidationError(
+        `Name must contain at least ${MEMBER_NAME_MIN_LENGTH} characters`
+      );
+    }
+
+    if (normalizedName.length > MEMBER_NAME_MAX_LENGTH) {
+      throw new ValidationError(
+        `Name must contain no more than ${MEMBER_NAME_MAX_LENGTH} characters`
+      );
+    }
+
+    return this.memberRepository.create(roomId, normalizedName);
   }
 }

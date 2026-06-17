@@ -8,7 +8,9 @@ import {
   PrimaryKey,
   Default,
 } from 'sequelize-typescript';
+
 import { Room } from './room';
+import { Member } from './member';
 
 @Table({ tableName: 'expenses', timestamps: true })
 export class Expense extends Model {
@@ -21,18 +23,34 @@ export class Expense extends Model {
   @Column({ type: DataType.UUID, allowNull: false })
   declare roomId: string;
 
+  @ForeignKey(() => Member)
   @Column({ type: DataType.UUID, allowNull: false })
   declare paidBy: string;
 
-  @Column({ type: DataType.DECIMAL(10, 2), allowNull: false })
+  @Column({
+    type: DataType.DECIMAL(10, 2),
+    allowNull: false,
+  })
   declare amount: number;
 
-  @Column({ type: DataType.STRING, allowNull: false })
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
   declare description: string;
 
-  @Column({ type: DataType.ARRAY(DataType.UUID), allowNull: false })
+  @Column({
+    type: DataType.ARRAY(DataType.UUID),
+    allowNull: false,
+  })
   declare split: string[];
 
   @BelongsTo(() => Room)
   declare room: Room;
+
+  @BelongsTo(() => Member, {
+    foreignKey: 'paidBy',
+    as: 'payer',
+  })
+  declare payer: Member;
 }

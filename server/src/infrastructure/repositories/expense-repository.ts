@@ -31,8 +31,18 @@ export class ExpenseRepository implements IExpenseRepository {
     return expense ? this.toEntity(expense) : null;
   }
 
-  async delete(id: string): Promise<void> {
-    await Expense.destroy({ where: { id } });
+  async deleteByIdAndRoomId(
+    expenseId: string,
+    roomId: string
+  ): Promise<boolean> {
+    const deletedCount = await Expense.destroy({
+      where: {
+        id: expenseId,
+        roomId,
+      },
+    });
+
+    return deletedCount > 0;
   }
 
   private toEntity(expense: Expense): IExpenseEntity {

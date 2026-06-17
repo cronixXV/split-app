@@ -1,15 +1,23 @@
 import { inject, injectable } from 'tsyringe';
-import { IExpenseRepository } from '../../domain/repositories';
+
+import type { IExpenseRepository } from '../../domain/repositories';
+import { NotFoundError } from '../errors';
 
 @injectable()
 export class DeleteExpenseUseCase {
   constructor(
-    @inject('IExpenseRepository') private expenseRepository: IExpenseRepository
+    @inject('IExpenseRepository')
+    private readonly expenseRepository: IExpenseRepository
   ) {}
 
-  async execute(expenseId: string): Promise<void> {
-    const expense = await this.expenseRepository.findById(expenseId);
-    if (!expense) throw new Error('Expense not found');
-    await this.expenseRepository.delete(expenseId);
+  async execute(roomId: string, expenseId: string): Promise<void> {
+    const wasDeleted = await this.expenseRepository.deleteByIdAndRoomId(
+      expenseId,
+      roomId
+    );
+
+    if (!wasDeleted) {
+      throw new NotFoundError('Expense not found');
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { IExpenseEntity } from '../entities';
+import type { IExpenseEntity } from '../entities';
 
 export interface IExpenseRepository {
   create(
@@ -6,5 +6,5 @@ export interface IExpenseRepository {
   ): Promise<IExpenseEntity>;
   findByRoomId(roomId: string): Promise<IExpenseEntity[]>;
   findById(id: string): Promise<IExpenseEntity | null>;
-  delete(id: string): Promise<void>;
+  deleteByIdAndRoomId(expenseId: string, roomId: string): Promise<boolean>;
 }

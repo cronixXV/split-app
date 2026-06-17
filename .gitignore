@@ -25,3 +25,14 @@ Thumbs.db
 *.ntvs*
 *.njsproj
 *.sln
+
+# TypeScript incremental build information
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# Keep environment template
+.env.*
+!.env.example

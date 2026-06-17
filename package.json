@@ -10,15 +10,19 @@
   "scripts": {
     "dev": "docker compose up --build",
     "dev:down": "docker compose down",
-    "prod": "docker compose -f docker-compose.prod.yml up --build",
-    "prod:down": "docker compose -f docker-compose.prod.yml down",
-    "migrate": "npm run migrate --workspace=server",
-    "lint": "eslint . --ext .ts,.tsx",
-    "format": "prettier --write ."
+    "dev:shared": "npm run dev --workspace=@shared/types",
+    "dev:client": "npm run dev --workspace=split-app-client",
+    "dev:server": "npm run dev --workspace=split-app-server",
+    "build:shared": "npm run build --workspace=@shared/types",
+    "build:server": "npm run build --workspace=split-app-server",
+    "build:client": "npm run build --workspace=split-app-client",
+    "build": "npm run build:shared && npm run build:server && npm run build:client",
+    "typecheck": "npm run build:shared && npm run typecheck --workspace=split-app-server && npm run typecheck --workspace=split-app-client"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "concurrently": "^10.0.3",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.0",
@@ -27,7 +31,8 @@
     "typescript": "^5.4.0"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=22.12.0",
     "npm": ">=10.0.0"
-  }
+  },
+  "packageManager": "npm@10.9.8"
 }

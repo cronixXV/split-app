@@ -19,16 +19,22 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile.dev
+
+    command: sh -c "npm run build:shared && npm run dev:server"
+
     volumes:
       - ./server/src:/app/server/src
       - ./shared/src:/app/shared/src
+
     ports:
       - "3001:3001"
+
     environment:
       DATABASE_URL: postgres://user:password@postgres:5432/splitapp
       PORT: 3001
       NODE_ENV: development
       CLIENT_ORIGIN: http://localhost:5173
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,11 +43,16 @@ services:
     build:
       context: .
       dockerfile: client/Dockerfile.dev
+
+    command: sh -c "npm run build:shared && npm run dev:client"
+
     volumes:
       - ./client/src:/app/client/src
       - ./shared/src:/app/shared/src
+
     ports:
       - "5173:5173"
+
     depends_on:
       - server
 

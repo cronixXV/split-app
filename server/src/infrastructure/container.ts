@@ -1,9 +1,12 @@
 import 'reflect-metadata';
 import { container } from 'tsyringe';
 
-import { IRoomRepository } from '../domain/repositories/IRoomRepository';
-import { IMemberRepository } from '../domain/repositories/IMemberRepository';
-import { IExpenseRepository } from '../domain/repositories/IExpenseRepository';
+import type {
+  IExpenseRepository,
+  IMemberRepository,
+  IRoomRepository,
+} from '../domain/repositories';
+
 import {
   ExpenseRepository,
   MemberRepository,
@@ -11,10 +14,12 @@ import {
 } from './repositories';
 
 container.registerSingleton<IRoomRepository>('IRoomRepository', RoomRepository);
+
 container.registerSingleton<IMemberRepository>(
   'IMemberRepository',
   MemberRepository
 );
+
 container.registerSingleton<IExpenseRepository>(
   'IExpenseRepository',
   ExpenseRepository

@@ -12,6 +12,15 @@ import { z } from 'zod';
 
 import { hasAtMostTwoDecimalPlaces } from '../../domain/validation/money-validation';
 
+export const roomParamsSchema = z.object({
+  id: z.string().uuid('Room id must be a valid UUID'),
+});
+
+export const expenseParamsSchema = z.object({
+  id: z.string().uuid('Room id must be a valid UUID'),
+  eid: z.string().uuid('Expense id must be a valid UUID'),
+});
+
 export const createRoomSchema = z.object({
   name: z
     .string()

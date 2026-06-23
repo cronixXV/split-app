@@ -1,50 +1,54 @@
+import 'dotenv/config';
 import 'reflect-metadata';
-import './infrastructure/container';
-import dotenv from 'dotenv';
-dotenv.config();
 
-import express from 'express';
-import cors from 'cors';
-import morgan from 'morgan';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
+import { createApp } from './app';
 import sequelize from './infrastructure/database/connection';
-
-import { errorHandler, notFound } from './presentation/middleware';
-import roomRoutes from './presentation/routes/room-routes';
 
 const execAsync = promisify(exec);
 
-async function runMigrations() {
+async function runMigrations(): Promise<void> {
   console.log('⏳ Running migrations...');
+
   const { stdout, stderr } = await execAsync('npx sequelize-cli db:migrate');
-  if (stdout) console.log(stdout);
-  if (stderr) console.error(stderr);
+
+  if (stdout) {
+    console.log(stdout);
+  }
+
+  if (stderr) {
+    console.error(stderr);
+  }
+
   console.log('✅ Migrations done');
 }
 
-async function bootstrap() {
+function getPort(): number {
+  const port = Number(process.env.PORT ?? 3001);
+
+  if (!Number.isInteger(port) || port <= 0) {
+    throw new Error(
+      `PORT must be a positive integer, received: ${process.env.PORT}`
+    );
+  }
+
+  return port;
+}
+
+async function bootstrap(): Promise<void> {
   try {
     await sequelize.authenticate();
     console.log('✅ Database connected');
 
     await runMigrations();
 
-    const app = express();
+    const app = createApp();
+    const port = getPort();
 
-    app.use(cors({ origin: process.env.CLIENT_ORIGIN }));
-    app.use(morgan('dev'));
-    app.use(express.json());
-
-    app.use('/api/rooms', roomRoutes);
-
-    app.use(notFound);
-    app.use(errorHandler);
-
-    const PORT = process.env.PORT ?? 3001;
-    app.listen(PORT, () => {
-      console.log(`🚀 Server ready on port ${PORT}`);
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 Server ready on port ${port}`);
     });
   } catch (error) {
     console.error('❌ Startup error:', error);
@@ -52,4 +56,4 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+void bootstrap();

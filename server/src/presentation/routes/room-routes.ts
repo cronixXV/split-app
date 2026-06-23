@@ -4,13 +4,9 @@ import {
   createRoomSchema,
   addMemberSchema,
   createExpenseSchema,
+  roomParamsSchema,
+  expenseParamsSchema,
 } from '../validators';
-
-import {
-  ExpenseRepository,
-  MemberRepository,
-  RoomRepository,
-} from '../../infrastructure/repositories';
 
 import { CreateRoomUseCase, GetRoomUseCase } from '../../application/room';
 
@@ -21,30 +17,15 @@ import {
   DeleteExpenseUseCase,
 } from '../../application/expense';
 import { asyncHandler } from '../middleware';
+import { container } from '../../infrastructure/container';
 
 const router = Router();
 
-const roomRepository = new RoomRepository();
-const memberRepository = new MemberRepository();
-const expenseRepository = new ExpenseRepository();
-
-const createRoomUseCase = new CreateRoomUseCase(roomRepository);
-
-const getRoomUseCase = new GetRoomUseCase(
-  roomRepository,
-  memberRepository,
-  expenseRepository
-);
-
-const addMemberUseCase = new AddMemberUseCase(memberRepository, roomRepository);
-
-const createExpenseUseCase = new CreateExpenseUseCase(
-  expenseRepository,
-  memberRepository,
-  roomRepository
-);
-
-const deleteExpenseUseCase = new DeleteExpenseUseCase(expenseRepository);
+const createRoomUseCase = container.resolve(CreateRoomUseCase);
+const getRoomUseCase = container.resolve(GetRoomUseCase);
+const addMemberUseCase = container.resolve(AddMemberUseCase);
+const createExpenseUseCase = container.resolve(CreateExpenseUseCase);
+const deleteExpenseUseCase = container.resolve(DeleteExpenseUseCase);
 
 /**
  * POST /api/rooms
@@ -68,7 +49,9 @@ router.post(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const roomDetails = await getRoomUseCase.execute(req.params.id);
+    const { id } = roomParamsSchema.parse(req.params);
+
+    const roomDetails = await getRoomUseCase.execute(id);
 
     res.json(roomDetails);
   })
@@ -81,9 +64,10 @@ router.get(
 router.post(
   '/:id/members',
   asyncHandler(async (req, res) => {
+    const { id } = roomParamsSchema.parse(req.params);
     const { name } = addMemberSchema.parse(req.body);
 
-    const member = await addMemberUseCase.execute(req.params.id, name);
+    const member = await addMemberUseCase.execute(id, name);
 
     res.status(201).json(member);
   })
@@ -96,9 +80,10 @@ router.post(
 router.post(
   '/:id/expenses',
   asyncHandler(async (req, res) => {
+    const { id } = roomParamsSchema.parse(req.params);
     const dto = createExpenseSchema.parse(req.body);
 
-    const expense = await createExpenseUseCase.execute(req.params.id, dto);
+    const expense = await createExpenseUseCase.execute(id, dto);
 
     res.status(201).json(expense);
   })
@@ -111,10 +96,11 @@ router.post(
 router.delete(
   '/:id/expenses/:eid',
   asyncHandler(async (req, res) => {
-    await deleteExpenseUseCase.execute(req.params.id, req.params.eid);
+    const { id, eid } = expenseParamsSchema.parse(req.params);
+
+    await deleteExpenseUseCase.execute(id, eid);
 
     res.status(204).send();
   })
 );
-
 export default router;

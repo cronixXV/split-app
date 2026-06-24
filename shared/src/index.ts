@@ -20,8 +20,7 @@ export interface Expense {
   createdAt: string;
 }
 
-// Производные (вычисляются из расходов)
-
+// Производные данные — вычисляются из расходов
 export interface Balance {
   memberId: string;
   memberName: string;
@@ -37,7 +36,6 @@ export interface Transfer {
 }
 
 // Полный ответ GET /api/rooms/:id
-
 export interface RoomDetails {
   room: Room;
   members: Member[];
@@ -46,6 +44,7 @@ export interface RoomDetails {
   transfers: Transfer[];
 }
 
+// События изменения данных комнаты
 export interface WsExpenseAdded {
   type: 'expense_added';
   payload: Expense;
@@ -53,7 +52,9 @@ export interface WsExpenseAdded {
 
 export interface WsExpenseDeleted {
   type: 'expense_deleted';
-  payload: { id: string };
+  payload: {
+    id: string;
+  };
 }
 
 export interface WsMemberAdded {
@@ -61,19 +62,83 @@ export interface WsMemberAdded {
   payload: Member;
 }
 
-export interface WsRoomPresence {
-  type: 'room_presence';
-  payload: { count: number };
+/**
+ * Бизнес-события комнаты.
+ *
+ * room_presence не входит в WsEvent, потому что сервер
+ * отправляет присутствие отдельным Socket.IO-событием.
+ */
+export type WsEvent = WsExpenseAdded | WsExpenseDeleted | WsMemberAdded;
+
+// Socket.IO — события клиента
+export interface JoinRoomPayload {
+  roomId: string;
 }
 
-export type WsEvent =
-  | WsExpenseAdded
-  | WsExpenseDeleted
-  | WsMemberAdded
-  | WsRoomPresence;
+export interface LeaveRoomPayload {
+  roomId: string;
+}
 
-//  DTO — тела запросов
+/**
+ * Результат выполнения join_room.
+ *
+ * Сервер возвращает его через acknowledgement callback.
+ */
+export type JoinRoomResult =
+  | {
+      ok: true;
+      roomId: string;
+    }
+  | {
+      ok: false;
+      code: 'VALIDATION_ERROR' | 'NOT_FOUND' | 'INTERNAL_ERROR';
+      error: string;
+    };
 
+/**
+ * События, которые клиент отправляет Socket.IO-серверу.
+ */
+export interface ClientToServerEvents {
+  join_room: (
+    payload: JoinRoomPayload,
+    acknowledge?: (result: JoinRoomResult) => void
+  ) => void;
+
+  leave_room: (payload: LeaveRoomPayload) => void;
+}
+
+/**
+ * События, которые Socket.IO-сервер отправляет клиенту.
+ */
+export interface ServerToClientEvents {
+  /**
+   * Единый канал для изменений данных комнаты.
+   * Конкретное событие определяется через data.type.
+   */
+  event: (data: WsEvent) => void;
+
+  /**
+   * Количество активных socket-соединений в комнате.
+   * Это количество вкладок/соединений, а не уникальных людей.
+   */
+  room_presence: (data: { count: number }) => void;
+}
+
+/**
+ * События между несколькими экземплярами Socket.IO-сервера.
+ * Пока горизонтальное масштабирование не используется.
+ */
+export type InterServerEvents = Record<string, never>;
+
+/**
+ * Данные, которые сервер хранит отдельно
+ * для каждого socket-соединения.
+ */
+export interface SocketData {
+  roomId?: string;
+}
+
+// DTO — тела HTTP-запросов
 export interface CreateRoomDto {
   name: string;
 }
@@ -89,6 +154,7 @@ export interface CreateExpenseDto {
   split: string[];
 }
 
+// Общие правила валидации
 export const ROOM_NAME_MIN_LENGTH = 2;
 export const ROOM_NAME_MAX_LENGTH = 100;
 

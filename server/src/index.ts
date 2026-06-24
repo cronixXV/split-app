@@ -1,11 +1,15 @@
 import 'dotenv/config';
 import 'reflect-metadata';
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { exec } from 'node:child_process';
+import { createServer } from 'node:http';
+import { promisify } from 'node:util';
 
 import { createApp } from './app';
+
 import sequelize from './infrastructure/database/connection';
+
+import { initRoomSocket } from './presentation/sockets';
 
 const execAsync = promisify(exec);
 
@@ -40,18 +44,25 @@ function getPort(): number {
 async function bootstrap(): Promise<void> {
   try {
     await sequelize.authenticate();
+
     console.log('✅ Database connected');
 
     await runMigrations();
 
     const app = createApp();
+
+    const httpServer = createServer(app);
+
+    initRoomSocket(httpServer);
+
     const port = getPort();
 
-    app.listen(port, '0.0.0.0', () => {
-      console.log(`🚀 Server ready on port ${port}`);
+    httpServer.listen(port, '0.0.0.0', () => {
+      console.log(`🚀 HTTP and Socket.IO server ready on port ${port}`);
     });
   } catch (error) {
     console.error('❌ Startup error:', error);
+
     process.exit(1);
   }
 }

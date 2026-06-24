@@ -1,12 +1,6 @@
 import { Router } from 'express';
 
-import {
-  createRoomSchema,
-  addMemberSchema,
-  createExpenseSchema,
-  roomParamsSchema,
-  expenseParamsSchema,
-} from '../validators';
+import { container } from '../../infrastructure/container';
 
 import { CreateRoomUseCase, GetRoomUseCase } from '../../application/room';
 
@@ -16,8 +10,19 @@ import {
   CreateExpenseUseCase,
   DeleteExpenseUseCase,
 } from '../../application/expense';
+
 import { asyncHandler } from '../middleware';
-import { container } from '../../infrastructure/container';
+
+import {
+  addMemberSchema,
+  createExpenseSchema,
+  createRoomSchema,
+  expenseParamsSchema,
+  roomParamsSchema,
+} from '../validators';
+
+import { broadcastToRoom } from '../sockets';
+import { toExpenseContract, toMemberContract } from '../mappers/api-mappers';
 
 const router = Router();
 
@@ -29,7 +34,7 @@ const deleteExpenseUseCase = container.resolve(DeleteExpenseUseCase);
 
 /**
  * POST /api/rooms
- * Создать новую комнату
+ * Создать новую комнату.
  */
 router.post(
   '/',
@@ -44,7 +49,7 @@ router.post(
 
 /**
  * GET /api/rooms/:id
- * Получить комнату со всеми вычисленными данными
+ * Получить комнату со всеми вычисленными данными.
  */
 router.get(
   '/:id',
@@ -59,39 +64,55 @@ router.get(
 
 /**
  * POST /api/rooms/:id/members
- * Добавить участника в комнату
+ * Добавить участника и сообщить всем подключениям комнаты.
  */
 router.post(
   '/:id/members',
   asyncHandler(async (req, res) => {
     const { id } = roomParamsSchema.parse(req.params);
+
     const { name } = addMemberSchema.parse(req.body);
 
     const member = await addMemberUseCase.execute(id, name);
 
-    res.status(201).json(member);
+    const memberContract = toMemberContract(member);
+
+    broadcastToRoom(id, {
+      type: 'member_added',
+      payload: memberContract,
+    });
+
+    res.status(201).json(memberContract);
   })
 );
 
 /**
  * POST /api/rooms/:id/expenses
- * Добавить расход в комнату
+ * Добавить расход и сообщить всем подключениям комнаты.
  */
 router.post(
   '/:id/expenses',
   asyncHandler(async (req, res) => {
     const { id } = roomParamsSchema.parse(req.params);
+
     const dto = createExpenseSchema.parse(req.body);
 
     const expense = await createExpenseUseCase.execute(id, dto);
 
-    res.status(201).json(expense);
+    const expenseContract = toExpenseContract(expense);
+
+    broadcastToRoom(id, {
+      type: 'expense_added',
+      payload: expenseContract,
+    });
+
+    res.status(201).json(expenseContract);
   })
 );
 
 /**
  * DELETE /api/rooms/:id/expenses/:eid
- * Удалить расход только из указанной комнаты
+ * Удалить расход только из указанной комнаты.
  */
 router.delete(
   '/:id/expenses/:eid',
@@ -100,7 +121,15 @@ router.delete(
 
     await deleteExpenseUseCase.execute(id, eid);
 
+    broadcastToRoom(id, {
+      type: 'expense_deleted',
+      payload: {
+        id: eid,
+      },
+    });
+
     res.status(204).send();
   })
 );
+
 export default router;

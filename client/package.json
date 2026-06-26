@@ -14,8 +14,9 @@
     "@shared/types": "*",
     "@tanstack/react-router": "^1.29.0",
     "antd": "^5.15.0",
-    "effector": "^23.0.0",
-    "effector-react": "^23.0.0",
+    "axios": "^1.18.1",
+    "effector": "^23.4.4",
+    "effector-react": "^23.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "socket.io-client": "^4.8.3"

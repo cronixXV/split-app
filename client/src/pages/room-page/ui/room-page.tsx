@@ -1,296 +1,208 @@
-import type { FormEvent } from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { useRoomPage } from '../model/hooks/use-room-page';
+import { useNavigate } from '@tanstack/react-router';
 
-interface RoomPageProps {
+import { Alert, Button, Card, Spinner, Tabs } from '@heroui/react';
+
+import { useMediaQuery } from '@/shared/lib/use-media-query';
+
+import { ExpenseList } from '@/widgets/expense-list';
+import { MemberBar } from '@/widgets/member-bar';
+import { TransferSummary } from '@/widgets/transfer-summary';
+
+import { useRoomPage } from '../model/hooks/use-room-page';
+import { ExpenseForm } from '@/features/expense';
+
+interface IRoomPageProps {
   roomId: string;
 }
 
-export function RoomPage({ roomId }: RoomPageProps) {
+export const RoomPage = ({ roomId }: IRoomPageProps) => {
   const page = useRoomPage(roomId);
+  const navigate = useNavigate();
 
-  const [memberName, setMemberName] = useState('');
-
-  const [description, setDescription] = useState('');
-
-  const [amount, setAmount] = useState('');
-
-  const [paidBy, setPaidBy] = useState('');
-
-  const [split, setSplit] = useState<string[]>([]);
-
-  /**
-   * Временные optimistic-участники ещё не существуют
-   * на сервере, поэтому их нельзя указывать в расходе.
-   */
-  const confirmedMembers = useMemo(
-    () => page.members.filter(member => !member.id.startsWith('temp:')),
-    [page.members]
-  );
-
-  useEffect(() => {
-    const confirmedMemberIds = new Set(
-      confirmedMembers.map(member => member.id)
-    );
-
-    if (!confirmedMemberIds.has(paidBy)) {
-      setPaidBy(confirmedMembers[0]?.id ?? '');
-    }
-
-    setSplit(currentSplit => {
-      const existingIds = currentSplit.filter(id => confirmedMemberIds.has(id));
-
-      return existingIds.length > 0
-        ? existingIds
-        : confirmedMembers.map(member => member.id);
-    });
-  }, [confirmedMembers, paidBy]);
-
-  function handleAddMember(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    page.addMember(memberName);
-    setMemberName('');
-  }
-
-  function handleSaveExpense(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    page.saveExpense({
-      paidBy,
-      amount: Number(amount),
-      description,
-      split,
-    });
-
-    setDescription('');
-    setAmount('');
-  }
-
-  function toggleSplitMember(memberId: string) {
-    setSplit(currentSplit =>
-      currentSplit.includes(memberId)
-        ? currentSplit.filter(id => id !== memberId)
-        : [...currentSplit, memberId]
-    );
-  }
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   if (page.isLoading && page.room === null) {
-    return <p>Загрузка комнаты…</p>;
+    return (
+      <main className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner size="xl" color="accent" />
+
+          <p className="text-sm text-muted">Загружаем комнату…</p>
+        </div>
+      </main>
+    );
   }
 
   if (page.loadError && page.room === null) {
     return (
-      <main>
-        <p>Ошибка загрузки: {page.loadError}</p>
+      <main className="flex min-h-screen items-center justify-center px-4">
+        <Card className="w-full max-w-lg">
+          <Card.Header>
+            <Card.Title>Не удалось загрузить комнату</Card.Title>
 
-        <button type="button" onClick={page.reload}>
-          Повторить
-        </button>
+            <Card.Description>{page.loadError}</Card.Description>
+          </Card.Header>
+
+          <Card.Footer className="flex flex-wrap gap-3">
+            <Button variant="primary" onPress={page.reload}>
+              Повторить
+            </Button>
+
+            <Button
+              variant="secondary"
+              onPress={() => {
+                void navigate({
+                  to: '/',
+                });
+              }}
+            >
+              На главную
+            </Button>
+          </Card.Footer>
+        </Card>
       </main>
     );
   }
 
   if (!page.room) {
-    return <p>Комната не найдена</p>;
+    return (
+      <main className="flex min-h-screen items-center justify-center px-4">
+        <Card className="w-full max-w-lg">
+          <Card.Header>
+            <Card.Title>Комната не найдена</Card.Title>
+
+            <Card.Description>
+              Возможно, ссылка устарела или комната была удалена.
+            </Card.Description>
+          </Card.Header>
+
+          <Card.Footer>
+            <Button
+              variant="primary"
+              onPress={() => {
+                void navigate({
+                  to: '/',
+                });
+              }}
+            >
+              На главную
+            </Button>
+          </Card.Footer>
+        </Card>
+      </main>
+    );
   }
 
+  const expensesContent = (
+    <ExpenseList
+      expenses={page.expenses}
+      members={page.members}
+      deleteExpenseError={page.deleteExpenseError}
+      isExpenseDeleting={page.isExpenseDeleting}
+      onDeleteExpense={page.deleteExpense}
+    />
+  );
+
+  const summaryContent = (
+    <TransferSummary balances={page.balances} transfers={page.transfers} />
+  );
+
   return (
-    <main>
-      <header>
-        <h1>{page.room.name}</h1>
+    <main className="min-h-screen bg-background">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-3 py-5 sm:px-6 md:gap-6 md:py-8">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="-ml-3 mb-2"
+              onPress={() => {
+                void navigate({
+                  to: '/',
+                });
+              }}
+            >
+              ← На главную
+            </Button>
 
-        <p>Socket: {page.isSocketConnected ? 'подключён' : 'отключён'}</p>
+            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+              {page.room.name}
+            </h1>
 
-        <p>Онлайн: {page.onlineCount}</p>
+            <p className="mt-2 max-w-2xl text-sm text-muted md:text-base">
+              Добавляйте участников и распределяйте общие расходы.
+            </p>
+          </div>
 
-        {page.socketError && <p>Socket error: {page.socketError}</p>}
-      </header>
+          <Button
+            variant="secondary"
+            isPending={page.isLoading}
+            onPress={page.reload}
+          >
+            {page.isLoading ? 'Обновляем…' : 'Обновить'}
+          </Button>
+        </header>
 
-      <hr />
+        {page.socketError && (
+          <Alert status="warning">
+            <Alert.Indicator />
 
-      <section>
-        <h2>Добавить участника</h2>
+            <Alert.Content>
+              <Alert.Title>Проблема с realtime-соединением</Alert.Title>
 
-        <form onSubmit={handleAddMember}>
-          <input
-            value={memberName}
-            placeholder="Имя"
-            onChange={event => {
-              setMemberName(event.target.value);
-            }}
-          />
-
-          <button type="submit" disabled={page.isAddingMember}>
-            {page.isAddingMember ? 'Добавление…' : 'Добавить'}
-          </button>
-        </form>
-
-        {page.addMemberError && <p>Ошибка: {page.addMemberError}</p>}
-
-        <ul>
-          {page.members.map(member => (
-            <li key={member.id}>
-              {member.name}
-
-              {member.id.startsWith('temp:') && ' — optimistic'}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <hr />
-
-      <section>
-        <h2>Добавить расход</h2>
-
-        {confirmedMembers.length === 0 ? (
-          <p>Сначала добавь хотя бы одного участника.</p>
-        ) : (
-          <form onSubmit={handleSaveExpense}>
-            <div>
-              <label>
-                Описание{' '}
-                <input
-                  value={description}
-                  onChange={event => {
-                    setDescription(event.target.value);
-                  }}
-                />
-              </label>
-            </div>
-
-            <div>
-              <label>
-                Сумма{' '}
-                <input
-                  type="number"
-                  step="0.01"
-                  value={amount}
-                  onChange={event => {
-                    setAmount(event.target.value);
-                  }}
-                />
-              </label>
-            </div>
-
-            <div>
-              <label>
-                Кто заплатил{' '}
-                <select
-                  value={paidBy}
-                  onChange={event => {
-                    setPaidBy(event.target.value);
-                  }}
-                >
-                  {confirmedMembers.map(member => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <fieldset>
-              <legend>Кто участвует</legend>
-
-              {confirmedMembers.map(member => (
-                <label
-                  key={member.id}
-                  style={{
-                    display: 'block',
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={split.includes(member.id)}
-                    onChange={() => {
-                      toggleSplitMember(member.id);
-                    }}
-                  />
-
-                  {member.name}
-                </label>
-              ))}
-            </fieldset>
-
-            <button type="submit" disabled={page.isSavingExpense}>
-              {page.isSavingExpense ? 'Сохранение…' : 'Добавить расход'}
-            </button>
-          </form>
+              <Alert.Description>{page.socketError}</Alert.Description>
+            </Alert.Content>
+          </Alert>
         )}
 
-        {page.saveExpenseError && <p>Ошибка: {page.saveExpenseError}</p>}
-      </section>
+        <MemberBar
+          members={page.members}
+          onlineCount={page.onlineCount}
+          isSocketConnected={page.isSocketConnected}
+          isAddingMember={page.isAddingMember}
+          addMemberError={page.addMemberError}
+          onAddMember={page.addMember}
+        />
 
-      <hr />
+        <ExpenseForm
+          members={page.members}
+          isSaving={page.isSavingExpense}
+          saveExpenseError={page.saveExpenseError}
+          onSaveExpense={page.saveExpense}
+        />
 
-      <section>
-        <h2>Расходы</h2>
+        {isDesktop ? (
+          <div className="grid grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-6">
+            {expensesContent}
 
-        {page.expenses.length === 0 && <p>Расходов пока нет</p>}
+            {summaryContent}
+          </div>
+        ) : (
+          <Tabs className="w-full" defaultSelectedKey="expenses">
+            <Tabs.ListContainer>
+              <Tabs.List aria-label="Разделы комнаты" className="w-full">
+                <Tabs.Tab id="expenses" className="flex-1">
+                  <Tabs.Indicator />
+                  Расходы
+                </Tabs.Tab>
 
-        <ul>
-          {page.expenses.map(expense => {
-            const isTemporary = expense.id.startsWith('temp:');
+                <Tabs.Tab id="summary" className="flex-1">
+                  <Tabs.Indicator />
+                  Итоги
+                </Tabs.Tab>
+              </Tabs.List>
+            </Tabs.ListContainer>
 
-            const isDeleting = page.isExpenseDeleting(expense.id);
+            <Tabs.Panel id="expenses" className="pt-4">
+              {expensesContent}
+            </Tabs.Panel>
 
-            return (
-              <li key={expense.id}>
-                {expense.description}
-                {' — '}
-                {expense.amount}
-                {isTemporary && ' — optimistic'}{' '}
-                <button
-                  type="button"
-                  disabled={isTemporary || isDeleting}
-                  onClick={() => {
-                    page.deleteExpense(expense.id);
-                  }}
-                >
-                  {isDeleting ? 'Удаление…' : 'Удалить'}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {page.deleteExpenseError && <p>Ошибка: {page.deleteExpenseError}</p>}
-      </section>
-
-      <hr />
-
-      <section>
-        <h2>Балансы</h2>
-
-        <ul>
-          {page.balances.map(balance => (
-            <li key={balance.memberId}>
-              {balance.memberName}: {balance.amount}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2>Переводы</h2>
-
-        {page.transfers.length === 0 && <p>Переводы не требуются</p>}
-
-        <ul>
-          {page.transfers.map((transfer, index) => (
-            <li key={[transfer.from, transfer.to, index].join(':')}>
-              {transfer.fromName}
-              {' → '}
-              {transfer.toName}
-              {': '}
-              {transfer.amount}
-            </li>
-          ))}
-        </ul>
-      </section>
+            <Tabs.Panel id="summary" className="pt-4">
+              {summaryContent}
+            </Tabs.Panel>
+          </Tabs>
+        )}
+      </div>
     </main>
   );
-}
+};

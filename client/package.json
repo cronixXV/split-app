@@ -11,21 +11,27 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@heroui/react": "^3.2.1",
+    "@heroui/styles": "^3.2.1",
+    "@hookform/resolvers": "^5.4.0",
     "@shared/types": "*",
-    "@tanstack/react-router": "^1.29.0",
-    "antd": "^5.15.0",
+    "@tanstack/react-router": "^1.170.16",
     "axios": "^1.18.1",
     "effector": "^23.4.4",
     "effector-react": "^23.3.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "socket.io-client": "^4.8.3"
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.80.0",
+    "socket.io-client": "^4.8.3",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.1",
     "@types/node": "^22.19.21",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
+    "tailwindcss": "^4.3.1",
     "vite": "^8.0.16"
   }
 }

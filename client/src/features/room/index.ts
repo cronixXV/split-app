@@ -24,3 +24,9 @@ export {
   $socketError,
   type IJoinRoomFxResult,
 } from './realtime/model/store/realtime-store';
+
+export {
+  createRoomFx,
+  $createRoomPending,
+  $createRoomError,
+} from './create-room/model/store/create-room-store';

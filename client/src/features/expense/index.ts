@@ -12,3 +12,5 @@ export {
   $deletingExpenseIds,
   $deleteExpenseError,
 } from './delete-expense/model/store/delete-expense-store';
+
+export { ExpenseForm } from './expense-form/ui/expense-form';

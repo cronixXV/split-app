@@ -32,6 +32,7 @@ import {
 
 interface IExpenseFormProps {
   members: Member[];
+  detectedAmount: number | null;
   isSaving: boolean;
   saveExpenseError: string | null;
   onSaveExpense: (dto: CreateExpenseDto) => void;
@@ -39,6 +40,7 @@ interface IExpenseFormProps {
 
 export const ExpenseForm = ({
   members,
+  detectedAmount,
   isSaving,
   saveExpenseError,
   onSaveExpense,
@@ -68,6 +70,18 @@ export const ExpenseForm = ({
       split: [],
     },
   });
+
+  useEffect(() => {
+    if (detectedAmount === null) {
+      return;
+    }
+
+    setValue('amount', detectedAmount, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
+  }, [detectedAmount, setValue]);
 
   useEffect(() => {
     const memberIds = new Set(confirmedMembers.map(member => member.id));

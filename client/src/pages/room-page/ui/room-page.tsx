@@ -10,6 +10,13 @@ import { TransferSummary } from '@/widgets/transfer-summary';
 
 import { useRoomPage } from '../model/hooks/use-room-page';
 import { ExpenseForm } from '@/features/expense';
+import {
+  $detectedAmount,
+  ReceiptUpload,
+  scanReceiptReset,
+} from '@/features/scan-receipt';
+import { useUnit } from 'effector-react';
+import { useEffect, useRef } from 'react';
 
 interface IRoomPageProps {
   roomId: string;
@@ -20,6 +27,26 @@ export const RoomPage = ({ roomId }: IRoomPageProps) => {
   const navigate = useNavigate();
 
   const isDesktop = useMediaQuery('(min-width: 768px)');
+
+  const { detectedAmount, resetReceiptScan } = useUnit({
+    detectedAmount: $detectedAmount,
+    resetReceiptScan: scanReceiptReset,
+  });
+
+  const wasSavingExpenseRef = useRef(false);
+
+  useEffect(() => {
+    const wasSaving = wasSavingExpenseRef.current;
+
+    const isSuccessfullySaved =
+      wasSaving && !page.isSavingExpense && page.saveExpenseError === null;
+
+    if (isSuccessfullySaved) {
+      resetReceiptScan();
+    }
+
+    wasSavingExpenseRef.current = page.isSavingExpense;
+  }, [page.isSavingExpense, page.saveExpenseError, resetReceiptScan]);
 
   if (page.isLoading && page.room === null) {
     return (
@@ -164,8 +191,11 @@ export const RoomPage = ({ roomId }: IRoomPageProps) => {
           onAddMember={page.addMember}
         />
 
+        <ReceiptUpload />
+
         <ExpenseForm
           members={page.members}
+          detectedAmount={detectedAmount}
           isSaving={page.isSavingExpense}
           saveExpenseError={page.saveExpenseError}
           onSaveExpense={page.saveExpense}

@@ -14,5 +14,22 @@ build
 .env.*
 !.env.example
 
-coverage
-*.log
+*
+
+!package.json
+!package-lock.json
+!tsconfig.json
+
+!client/**
+!server/**
+!shared/**
+!nginx.conf
+
+**/node_modules
+**/dist
+
+**/.env
+**/.env.*
+!**/.env.example
+
+.git

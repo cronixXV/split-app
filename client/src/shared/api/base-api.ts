@@ -6,7 +6,7 @@ interface IApiErrorResponse {
   details?: unknown;
 }
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 export class ApiError extends Error {
   constructor(
@@ -42,7 +42,6 @@ apiClient.interceptors.response.use(
         new ApiError(
           responseBody?.error ??
             `Request failed with status ${error.response.status}`,
-
           error.response.status,
           responseBody?.code,
           responseBody?.details

@@ -7,6 +7,7 @@ import morgan from 'morgan';
 import { errorHandler, notFound } from './presentation/middleware';
 
 import roomRoutes from './presentation/routes/room-routes';
+import rateLimit from 'express-rate-limit';
 
 export function createApp() {
   const app = express();
@@ -22,6 +23,16 @@ export function createApp() {
   if (process.env.NODE_ENV === 'development') {
     app.use(morgan('dev'));
   }
+
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 100,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many requests', code: 'RATE_LIMITED' },
+    })
+  );
 
   app.use(
     express.json({

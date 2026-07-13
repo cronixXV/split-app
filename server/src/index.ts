@@ -4,78 +4,91 @@ import cron from 'node-cron';
 import { exec } from 'node:child_process';
 import { createServer } from 'node:http';
 import { promisify } from 'node:util';
+import { Op } from 'sequelize';
 
 import { createApp } from './app';
 
 import sequelize from './infrastructure/database/connection';
+import { logger } from './infrastructure/logger/logger';
+import { setupGracefulShutdown } from './infrastructure/runtime/graceful-shutdown';
+import { Room } from './infrastructure/database/models';
 
 import { initRoomSocket } from './presentation/sockets';
-import { Room } from './infrastructure/database/models';
-import { Op } from 'sequelize';
+import { env } from './infrastructure/config/env';
 
 const execAsync = promisify(exec);
 
 async function runMigrations(): Promise<void> {
-  console.log('⏳ Running migrations...');
+  logger.info('Running migrations');
 
   const { stdout, stderr } = await execAsync(
     'npx --no-install sequelize-cli db:migrate'
   );
 
   if (stdout) {
-    console.log(stdout);
-  }
-
-  if (stderr) {
-    console.error(stderr);
-  }
-
-  console.log('✅ Migrations done');
-}
-
-function getPort(): number {
-  const port = Number(process.env.PORT ?? 3001);
-
-  if (!Number.isInteger(port) || port <= 0) {
-    throw new Error(
-      `PORT must be a positive integer, received: ${process.env.PORT}`
+    logger.info(
+      {
+        stdout,
+      },
+      'Migrations stdout'
     );
   }
 
-  return port;
+  if (stderr) {
+    logger.warn(
+      {
+        stderr,
+      },
+      'Migrations stderr'
+    );
+  }
+
+  logger.info('Migrations done');
 }
 
-function startCronJobs(): void {
-  cron.schedule('0 3 * * *', async () => {
+function startCronJobs() {
+  const cleanupTask = cron.schedule(env.CRON_CLEANUP_SCHEDULE, async () => {
     try {
-      const thirtyDaysAgo = new Date();
+      const cutoffDate = new Date();
 
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      cutoffDate.setDate(cutoffDate.getDate() - env.ROOM_TTL_DAYS);
 
       const deleted = await Room.destroy({
         where: {
           createdAt: {
-            [Op.lt]: thirtyDaysAgo,
+            [Op.lt]: cutoffDate,
           },
         },
       });
 
       if (deleted > 0) {
-        console.log(`🧹 Cleaned up ${deleted} old rooms`);
+        logger.info(
+          {
+            deleted,
+          },
+          'Old rooms cleaned up'
+        );
       }
     } catch (error) {
-      console.error('❌ Cron cleanup failed:', error);
+      logger.error(
+        {
+          error,
+        },
+        'Cron cleanup failed'
+      );
     }
   });
 
-  console.log('⏰ Cron jobs started');
+  logger.info('Cron jobs started');
+
+  return [cleanupTask];
 }
 
 async function bootstrap(): Promise<void> {
   try {
     await sequelize.authenticate();
 
-    console.log('✅ Database connected');
+    logger.info('Database connected');
 
     await runMigrations();
 
@@ -83,17 +96,30 @@ async function bootstrap(): Promise<void> {
 
     const httpServer = createServer(app);
 
-    initRoomSocket(httpServer);
+    const socketServer = initRoomSocket(httpServer);
 
-    const port = getPort();
+    const cronTasks = startCronJobs();
 
-    httpServer.listen(port, '0.0.0.0', () => {
-      console.log(`🚀 HTTP and Socket.IO server ready on port ${port}`);
+    setupGracefulShutdown({
+      socketServer,
+      cronTasks,
+    });
 
-      startCronJobs();
+    httpServer.listen(env.PORT, '0.0.0.0', () => {
+      logger.info(
+        {
+          port: env.PORT,
+        },
+        'HTTP and Socket.IO server started'
+      );
     });
   } catch (error) {
-    console.error('❌ Startup error:', error);
+    logger.fatal(
+      {
+        error,
+      },
+      'Startup error'
+    );
 
     process.exit(1);
   }

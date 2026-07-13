@@ -6,7 +6,11 @@ interface IApiErrorResponse {
   details?: unknown;
 }
 
-const API_URL = import.meta.env.VITE_API_URL ?? '';
+const LOCAL_SERVER_URL = 'http://localhost:3001';
+
+const API_URL = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_URL ?? LOCAL_SERVER_URL)
+  : '';
 
 export class ApiError extends Error {
   constructor(

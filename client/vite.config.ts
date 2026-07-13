@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'url';
 
 export default defineConfig({
+  envDir: '..',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

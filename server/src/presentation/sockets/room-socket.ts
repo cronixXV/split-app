@@ -1,4 +1,6 @@
 import type { Server as HttpServer } from 'node:http';
+import { Server, type Socket } from 'socket.io';
+import { z } from 'zod';
 
 import type {
   ClientToServerEvents,
@@ -9,11 +11,11 @@ import type {
   WsEvent,
 } from '@shared/types';
 
-import { Server, type Socket } from 'socket.io';
-import { z } from 'zod';
-
 import type { IRoomRepository } from '../../domain/repositories';
+
 import { container } from '../../infrastructure/container';
+import { logger } from '../../infrastructure/logger/logger';
+import { env } from '../../infrastructure/config/env';
 
 export type TAppSocketServer = Server<
   ClientToServerEvents,
@@ -36,7 +38,8 @@ const roomPayloadSchema = z.object({
 /**
  * Ссылка на запущенный Socket.IO-сервер.
  *
- * Модуль используется REST-маршрутами для broadcast.
+ * REST-маршруты используют её для отправки
+ * realtime-событий в комнаты.
  */
 let ioServer: TAppSocketServer | null = null;
 
@@ -64,27 +67,36 @@ async function broadcastPresence(
  */
 function updatePresence(io: TAppSocketServer, roomId: string): void {
   void broadcastPresence(io, roomId).catch(error => {
-    console.error(`Failed to update presence for room ${roomId}:`, error);
+    logger.error(
+      {
+        error,
+        roomId,
+      },
+      'Failed to update room presence'
+    );
   });
 }
 
 /**
  * Отправляет бизнес-событие всем socket-соединениям комнаты.
  *
- * Так как изменение запускается REST-запросом, у маршрута
- * нет надёжной связи с конкретным socket.id. Поэтому событие
- * получают все подключения комнаты, включая вкладку,
+ * Изменение запускается REST-запросом, поэтому маршрут
+ * не имеет надёжной связи с конкретным socket.id.
+ * Событие получают все подключения комнаты, включая вкладку,
  * которая отправила HTTP-запрос.
  */
 export function broadcastToRoom(roomId: string, event: WsEvent): void {
   if (!ioServer) {
     /**
-     * Не превращаем успешную операцию БД в HTTP 500
+     * Не превращаем успешную операцию с БД в HTTP 500
      * только из-за отсутствия realtime-слоя.
      */
-    console.error(
-      'Socket.IO server is not initialized. Event was skipped:',
-      event
+    logger.error(
+      {
+        roomId,
+        event,
+      },
+      'Socket.IO server is not initialized, event was skipped'
     );
 
     return;
@@ -96,16 +108,14 @@ export function broadcastToRoom(roomId: string, event: WsEvent): void {
 /**
  * Создаёт Socket.IO-сервер и регистрирует обработчики
  * подключений комнаты.
+ *
+ * Возвращает экземпляр Socket.IO server,
+ * чтобы bootstrap мог корректно закрыть его
+ * при graceful shutdown.
  */
 export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
   if (ioServer) {
     throw new Error('Socket.IO server has already been initialized');
-  }
-
-  const clientOrigin = process.env.CLIENT_ORIGIN;
-
-  if (!clientOrigin) {
-    throw new Error('CLIENT_ORIGIN environment variable is required');
   }
 
   const io = new Server<
@@ -115,17 +125,21 @@ export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
     SocketData
   >(httpServer, {
     cors: {
-      origin: clientOrigin,
+      /**
+       * env.CLIENT_ORIGIN уже провалидирован через Zod
+       * и имеет тип string[].
+       */
+      origin: env.CLIENT_ORIGIN,
 
       /**
        * Socket.IO handshake использует GET и POST.
-       * DELETE здесь не нужен: это не список методов REST API.
+       * DELETE здесь не нужен: это не REST API.
        */
       methods: ['GET', 'POST'],
     },
 
     /**
-     * Клиент будет установлен отдельным npm-пакетом,
+     * Клиент устанавливается отдельным npm-пакетом,
      * поэтому серверу не нужно раздавать browser bundle.
      */
     serveClient: false,
@@ -136,7 +150,12 @@ export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
   const roomRepository = container.resolve<IRoomRepository>('IRoomRepository');
 
   io.on('connection', (socket: TAppSocket) => {
-    console.log(`🔌 Socket connected: ${socket.id}`);
+    logger.info(
+      {
+        socketId: socket.id,
+      },
+      'Socket connected'
+    );
 
     socket.on('join_room', async (rawPayload, acknowledge) => {
       const parsed = roomPayloadSchema.safeParse(rawPayload);
@@ -157,8 +176,8 @@ export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
 
       try {
         /**
-         * UUID может быть корректным, но комнаты
-         * с таким ID может не существовать.
+         * UUID может быть корректным,
+         * но комнаты с таким ID может не существовать.
          */
         const room = await roomRepository.findById(roomId);
 
@@ -190,7 +209,13 @@ export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
 
         socket.data.roomId = roomId;
 
-        console.log(`👤 Socket ${socket.id} joined room ${roomId}`);
+        logger.info(
+          {
+            socketId: socket.id,
+            roomId,
+          },
+          'Socket joined room'
+        );
 
         await broadcastPresence(io, roomId);
 
@@ -199,7 +224,14 @@ export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
           roomId,
         });
       } catch (error) {
-        console.error(`Failed to join room ${roomId}:`, error);
+        logger.error(
+          {
+            error,
+            socketId: socket.id,
+            roomId,
+          },
+          'Failed to join room'
+        );
 
         acknowledge?.({
           ok: false,
@@ -213,6 +245,14 @@ export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
       const parsed = roomPayloadSchema.safeParse(rawPayload);
 
       if (!parsed.success) {
+        logger.warn(
+          {
+            socketId: socket.id,
+            issues: parsed.error.issues,
+          },
+          'Invalid leave_room payload'
+        );
+
         return;
       }
 
@@ -223,6 +263,15 @@ export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
        * которая действительно записана в socket.data.
        */
       if (socket.data.roomId !== roomId) {
+        logger.warn(
+          {
+            socketId: socket.id,
+            requestedRoomId: roomId,
+            activeRoomId: socket.data.roomId,
+          },
+          'Socket attempted to leave a room it has not joined'
+        );
+
         return;
       }
 
@@ -231,18 +280,38 @@ export function initRoomSocket(httpServer: HttpServer): TAppSocketServer {
 
         socket.data.roomId = undefined;
 
-        console.log(`👤 Socket ${socket.id} left room ${roomId}`);
+        logger.info(
+          {
+            socketId: socket.id,
+            roomId,
+          },
+          'Socket left room'
+        );
 
         await broadcastPresence(io, roomId);
       } catch (error) {
-        console.error(`Failed to leave room ${roomId}:`, error);
+        logger.error(
+          {
+            error,
+            socketId: socket.id,
+            roomId,
+          },
+          'Failed to leave room'
+        );
       }
     });
 
     socket.on('disconnect', reason => {
       const roomId = socket.data.roomId;
 
-      console.log(`🔌 Socket disconnected: ${socket.id}; reason: ${reason}`);
+      logger.info(
+        {
+          socketId: socket.id,
+          roomId,
+          reason,
+        },
+        'Socket disconnected'
+      );
 
       if (!roomId) {
         return;

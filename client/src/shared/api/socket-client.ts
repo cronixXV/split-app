@@ -4,7 +4,11 @@ import { io, type Socket } from 'socket.io-client';
 
 export type TAppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? window.location.origin;
+const LOCAL_SOCKET_URL = 'http://localhost:3001';
+
+const SOCKET_URL = import.meta.env.DEV
+  ? (import.meta.env.VITE_SOCKET_URL ?? LOCAL_SOCKET_URL)
+  : window.location.origin;
 
 export function createSocketClient(): TAppSocket {
   return io(SOCKET_URL, {

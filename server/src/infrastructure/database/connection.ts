@@ -1,13 +1,12 @@
-import 'reflect-metadata';
 import { Sequelize } from 'sequelize-typescript';
-import { Room } from './models/room';
-import { Member } from './models/member';
 import { Expense } from './models/expense';
+import { Member } from './models/member';
+import { Room } from './models/room';
+import { env } from '../config/env';
 
-const sequelize = new Sequelize(process.env.DATABASE_URL!, {
-  dialect: 'postgres',
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
+const sequelize = new Sequelize(env.DATABASE_URL, {
   models: [Room, Member, Expense],
+  logging: false,
 });
 
 export default sequelize;

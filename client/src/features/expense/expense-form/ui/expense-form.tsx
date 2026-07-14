@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -19,8 +20,8 @@ import {
 } from '@heroui/react';
 
 import {
-  MAX_EXPENSE_AMOUNT,
   EXPENSE_DESCRIPTION_MAX_LENGTH,
+  MAX_EXPENSE_AMOUNT,
   type CreateExpenseDto,
   type Member,
 } from '@shared/types';
@@ -58,7 +59,7 @@ export const ExpenseForm = ({
     reset,
     setValue,
     getValues,
-    formState: { errors },
+    formState: { errors, dirtyFields },
   } = useForm<IExpenseFormValues>({
     resolver: yupResolver(expenseFormSchema),
     mode: 'onSubmit',
@@ -84,36 +85,40 @@ export const ExpenseForm = ({
   }, [detectedAmount, setValue]);
 
   useEffect(() => {
-    const memberIds = new Set(confirmedMembers.map(member => member.id));
+    const confirmedMemberIds = confirmedMembers.map(member => member.id);
+
+    const memberIds = new Set(confirmedMemberIds);
 
     const currentPaidBy = getValues('paidBy');
-    const currentSplit = getValues('split');
 
     if (!currentPaidBy || !memberIds.has(currentPaidBy)) {
-      setValue('paidBy', confirmedMembers[0]?.id ?? '', {
+      setValue('paidBy', confirmedMemberIds[0] ?? '', {
         shouldValidate: false,
         shouldDirty: false,
       });
     }
 
-    const validSplit = currentSplit.filter(id => memberIds.has(id));
+    const currentSplit = getValues('split');
 
-    setValue(
-      'split',
-      validSplit.length > 0
-        ? validSplit
-        : confirmedMembers.map(member => member.id),
-      {
-        shouldValidate: false,
-        shouldDirty: false,
-      }
-    );
-  }, [confirmedMembers, getValues, setValue]);
+    const validSplit = currentSplit.filter(memberId => memberIds.has(memberId));
+
+    const isSplitDirty = Boolean(dirtyFields.split);
+
+    const nextSplit = isSplitDirty ? validSplit : confirmedMemberIds;
+
+    setValue('split', nextSplit, {
+      shouldValidate: false,
+      shouldDirty: isSplitDirty,
+    });
+  }, [confirmedMembers, dirtyFields.split, getValues, setValue]);
 
   useEffect(() => {
     const wasSaving = wasSavingRef.current;
 
-    if (wasSaving && !isSaving && saveExpenseError === null) {
+    const isSuccessfullySaved =
+      wasSaving && !isSaving && saveExpenseError === null;
+
+    if (isSuccessfullySaved) {
       const defaultSplit = confirmedMembers.map(member => member.id);
 
       reset({
@@ -127,7 +132,7 @@ export const ExpenseForm = ({
     wasSavingRef.current = isSaving;
   }, [confirmedMembers, isSaving, reset, saveExpenseError]);
 
-  function submit(values: IExpenseFormValues) {
+  function submit(values: IExpenseFormValues): void {
     onSaveExpense({
       description: values.description.trim(),
       amount: values.amount,
@@ -138,7 +143,7 @@ export const ExpenseForm = ({
 
   if (confirmedMembers.length === 0) {
     return (
-      <Card className="w-full">
+      <Card data-cy="expense-form-unavailable" className="w-full">
         <Card.Header>
           <Card.Title>Новый расход</Card.Title>
 
@@ -162,13 +167,14 @@ export const ExpenseForm = ({
 
       <Card.Content>
         <Form
+          data-cy="expense-form"
           aria-label="Добавление расхода"
           validationBehavior="aria"
           className="flex flex-col gap-5"
           onSubmit={handleSubmit(submit)}
         >
           {saveExpenseError && (
-            <Alert status="danger">
+            <Alert data-cy="save-expense-error" status="danger">
               <Alert.Indicator />
 
               <Alert.Content>
@@ -193,6 +199,7 @@ export const ExpenseForm = ({
                   <Label>Описание</Label>
 
                   <Input
+                    data-cy="expense-description-input"
                     value={field.value}
                     maxLength={EXPENSE_DESCRIPTION_MAX_LENGTH}
                     placeholder="Например, ужин"
@@ -202,7 +209,9 @@ export const ExpenseForm = ({
                     }}
                   />
 
-                  <FieldError>{errors.description?.message}</FieldError>
+                  <FieldError data-cy="expense-description-error">
+                    {errors.description?.message}
+                  </FieldError>
                 </TextField>
               )}
             />
@@ -228,12 +237,14 @@ export const ExpenseForm = ({
                   <NumberField.Group>
                     <NumberField.DecrementButton />
 
-                    <NumberField.Input />
+                    <NumberField.Input data-cy="expense-amount-input" />
 
                     <NumberField.IncrementButton />
                   </NumberField.Group>
 
-                  <FieldError>{errors.amount?.message}</FieldError>
+                  <FieldError data-cy="expense-amount-error">
+                    {errors.amount?.message}
+                  </FieldError>
                 </NumberField>
               )}
             />
@@ -257,7 +268,7 @@ export const ExpenseForm = ({
               >
                 <Label>Кто заплатил</Label>
 
-                <Select.Trigger>
+                <Select.Trigger data-cy="expense-payer-trigger">
                   <Select.Value />
 
                   <Select.Indicator />
@@ -269,6 +280,8 @@ export const ExpenseForm = ({
                       <ListBox.Item
                         key={member.id}
                         id={member.id}
+                        data-cy="expense-payer-option"
+                        data-member-id={member.id}
                         textValue={member.name}
                       >
                         {member.name}
@@ -279,7 +292,9 @@ export const ExpenseForm = ({
                   </ListBox>
                 </Select.Popover>
 
-                <FieldError>{errors.paidBy?.message}</FieldError>
+                <FieldError data-cy="expense-payer-error">
+                  {errors.paidBy?.message}
+                </FieldError>
               </Select>
             )}
           />
@@ -304,6 +319,8 @@ export const ExpenseForm = ({
                   {confirmedMembers.map(member => (
                     <Checkbox
                       key={member.id}
+                      data-cy="expense-split-checkbox"
+                      data-member-id={member.id}
                       value={member.id}
                       variant="secondary"
                     >
@@ -318,12 +335,15 @@ export const ExpenseForm = ({
                   ))}
                 </div>
 
-                <FieldError>{errors.split?.message}</FieldError>
+                <FieldError data-cy="expense-split-error">
+                  {errors.split?.message}
+                </FieldError>
               </CheckboxGroup>
             )}
           />
 
           <Button
+            data-cy="add-expense-submit"
             type="submit"
             variant="primary"
             isPending={isSaving}

@@ -18,12 +18,15 @@
     "build:client": "npm run build --workspace=split-app-client",
     "build": "npm run build:shared && npm run build:server && npm run build:client",
     "typecheck": "npm run build:shared && npm run typecheck --workspace=split-app-server && npm run typecheck --workspace=split-app-client",
+    "test:e2e": "cypress run --e2e",
+    "test:e2e:open": "cypress open --e2e",
     "migrate": "npm run migrate --workspace=split-app-server"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "concurrently": "^10.0.3",
+    "cypress": "^15.18.1",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.0",

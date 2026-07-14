@@ -51,13 +51,13 @@ export const MemberBar = ({
     },
   });
 
-  function submit(values: IAddMemberFormValues) {
+  const submit = (values: IAddMemberFormValues) => {
     onAddMember(values.name.trim());
 
     reset({
       name: '',
     });
-  }
+  };
 
   return (
     <Card className="w-full">
@@ -81,7 +81,10 @@ export const MemberBar = ({
 
       <Card.Content className="flex flex-col gap-5">
         {members.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted">
+          <div
+            data-cy="members-empty"
+            className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted"
+          >
             Участников пока нет
           </div>
         ) : (
@@ -92,6 +95,8 @@ export const MemberBar = ({
               return (
                 <Chip
                   key={member.id}
+                  data-cy="member-item"
+                  data-member-id={member.id}
                   color={isTemporary ? 'accent' : 'default'}
                   variant="soft"
                 >
@@ -120,6 +125,7 @@ export const MemberBar = ({
                 <Label>Имя участника</Label>
 
                 <Input
+                  data-cy="member-name-input"
                   value={field.value}
                   maxLength={MEMBER_NAME_MAX_LENGTH}
                   placeholder="Например, Анна"
@@ -130,12 +136,15 @@ export const MemberBar = ({
                   }}
                 />
 
-                <FieldError>{errors.name?.message}</FieldError>
+                <FieldError data-cy="member-name-error">
+                  {errors.name?.message}
+                </FieldError>
               </TextField>
             )}
           />
 
           <Button
+            data-cy="add-member-submit"
             type="submit"
             variant="primary"
             className="sm:mt-6"

@@ -152,7 +152,10 @@ export const RoomPage = ({ roomId }: IRoomPageProps) => {
               ← На главную
             </Button>
 
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+            <h1
+              data-cy="room-title"
+              className="text-3xl font-semibold tracking-tight md:text-4xl"
+            >
               {page.room.name}
             </h1>
 

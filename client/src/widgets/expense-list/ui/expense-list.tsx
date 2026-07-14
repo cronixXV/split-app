@@ -34,14 +34,17 @@ export const ExpenseList = ({
           <Card.Description>Все расходы этой комнаты</Card.Description>
         </div>
 
-        <Chip size="sm" variant="soft" color="accent">
+        <Chip data-cy="expense-count" size="sm" variant="soft" color="accent">
           {expenses.length}
         </Chip>
       </Card.Header>
 
       <Card.Content>
         {expenses.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border px-4 py-10 text-center">
+          <div
+            data-cy="expenses-empty"
+            className="rounded-2xl border border-dashed border-border px-4 py-10 text-center"
+          >
             <p className="font-medium">Расходов пока нет</p>
 
             <p className="mt-1 text-sm text-muted">
@@ -59,13 +62,20 @@ export const ExpenseList = ({
                 memberNames.get(expense.paidBy) ?? 'Неизвестный участник';
 
               return (
-                <div key={expense.id}>
+                <div
+                  key={expense.id}
+                  data-cy="expense-item"
+                  data-expense-id={expense.id}
+                >
                   {index > 0 && <Separator />}
 
                   <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="truncate font-medium">
+                        <p
+                          data-cy="expense-description"
+                          className="truncate font-medium"
+                        >
                           {expense.description}
                         </p>
 
@@ -77,18 +87,23 @@ export const ExpenseList = ({
                       </div>
 
                       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-                        <span>Заплатил: {payerName}</span>
+                        <span data-cy="expense-payer">
+                          Заплатил: {payerName}
+                        </span>
 
-                        <span>Участников: {expense.split.length}</span>
+                        <span data-cy="expense-split-count">
+                          Участников: {expense.split.length}
+                        </span>
                       </div>
                     </div>
 
                     <div className="flex shrink-0 items-center justify-between gap-4 sm:justify-end">
-                      <span className="font-semibold">
+                      <span data-cy="expense-amount" className="font-semibold">
                         {formatMoney(expense.amount)}
                       </span>
 
                       <Button
+                        data-cy="delete-expense-submit"
                         size="sm"
                         variant="danger"
                         isDisabled={isTemporary}

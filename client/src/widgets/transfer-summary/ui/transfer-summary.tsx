@@ -84,12 +84,20 @@ export const TransferSummary = ({
           ) : (
             <div className="flex flex-col">
               {transfers.map((transfer, index) => (
-                <div key={[transfer.from, transfer.to, index].join(':')}>
+                <div
+                  key={[transfer.from, transfer.to, index].join(':')}
+                  data-cy="transfer-item"
+                  data-from-id={transfer.from}
+                  data-to-id={transfer.to}
+                >
                   {index > 0 && <Separator variant="tertiary" />}
 
                   <div className="flex items-center justify-between gap-4 py-3">
                     <div className="min-w-0">
-                      <p className="truncate font-medium">
+                      <p
+                        data-cy="transfer-route"
+                        className="truncate font-medium"
+                      >
                         {transfer.fromName}
                         {' → '}
                         {transfer.toName}
@@ -100,7 +108,10 @@ export const TransferSummary = ({
                       </p>
                     </div>
 
-                    <span className="shrink-0 font-semibold text-accent">
+                    <span
+                      data-cy="transfer-amount"
+                      className="shrink-0 font-semibold text-accent"
+                    >
                       {formatMoney(transfer.amount)}
                     </span>
                   </div>

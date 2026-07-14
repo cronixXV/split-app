@@ -106,6 +106,7 @@ export const HomePage = () => {
               name="name"
               render={({ field }) => (
                 <TextField
+                  data-cy="room-name-field"
                   isRequired
                   autoFocus
                   isInvalid={Boolean(errors.name)}
@@ -114,6 +115,7 @@ export const HomePage = () => {
                   <Label>Название комнаты</Label>
 
                   <Input
+                    data-cy="room-name-input"
                     value={field.value}
                     maxLength={ROOM_NAME_MAX_LENGTH}
                     placeholder="Например, поездка в Казань"
@@ -123,12 +125,15 @@ export const HomePage = () => {
                     }}
                   />
 
-                  <FieldError>{errors.name?.message}</FieldError>
+                  <FieldError data-cy="room-name-error">
+                    {errors.name?.message}
+                  </FieldError>
                 </TextField>
               )}
             />
 
             <Button
+              data-cy="create-room-submit"
               type="submit"
               variant="primary"
               size="lg"

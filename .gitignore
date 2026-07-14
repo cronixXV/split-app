@@ -36,3 +36,8 @@ coverage/
 # Keep environment template
 .env.*
 !.env.example
+
+# Cypress generated artifacts
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/

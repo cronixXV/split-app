@@ -14,7 +14,7 @@ COPY shared/ ./shared/
 RUN npm run build --workspace=@shared/types
 RUN npm run build --workspace=split-app-server
 
-# ─── Final image ─────────────────────────────────────────────────────────────
+
 FROM node:22-alpine AS runner
 
 WORKDIR /app

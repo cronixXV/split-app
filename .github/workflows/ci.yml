@@ -1,0 +1,219 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    name: TypeScript
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check TypeScript
+        run: npm run typecheck
+
+  lint:
+    name: ESLint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint:ci
+
+  build:
+    name: Production Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    needs:
+      - typecheck
+      - lint
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared
+        run: npm run build --workspace=@shared/types
+
+      - name: Build server
+        run: npm run build --workspace=split-app-server
+
+      - name: Build client
+        run: npm run build --workspace=split-app-client
+
+  e2e:
+    name: Cypress E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    needs:
+      - build
+
+    env:
+      CI: true
+      CYPRESS_BASE_URL: http://localhost
+      COMPOSE_PROJECT_NAME: split-app-ci
+
+      POSTGRES_DB: splitapp_ci
+      POSTGRES_USER: splitapp_ci
+      POSTGRES_PASSWORD: ci_only_password
+
+      PORT: 3001
+      NODE_ENV: production
+      CLIENT_ORIGIN: http://localhost
+
+      LOG_LEVEL: info
+
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX: 1000
+
+      ROOM_TTL_DAYS: 30
+      CRON_CLEANUP_SCHEDULE: '0 3 * * *'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Docker Compose
+        run: |
+          docker compose \
+            -f docker-compose.prod.yml \
+            config
+
+      - name: Start production stack
+        run: |
+          docker compose \
+            -f docker-compose.prod.yml \
+            up -d --build
+
+      - name: Wait for application
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl \
+              --fail \
+              --silent \
+              --show-error \
+              http://localhost/ready
+            then
+              echo
+              echo "Application is ready"
+              exit 0
+            fi
+
+            echo "Waiting for application: ${attempt}/60"
+            sleep 2
+          done
+
+          echo "Application did not become ready"
+
+          docker compose \
+            -f docker-compose.prod.yml \
+            ps
+
+          docker compose \
+            -f docker-compose.prod.yml \
+            logs \
+            --no-color
+
+          exit 1
+
+      - name: Run Cypress E2E
+        uses: cypress-io/github-action@v7
+        with:
+          install: false
+          browser: electron
+          summary-title: Split App E2E
+
+      - name: Collect Docker logs
+        if: always()
+        continue-on-error: true
+        run: |
+          docker compose \
+            -f docker-compose.prod.yml \
+            logs \
+            --no-color \
+            > docker-compose.log
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-${{ github.run_number }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            cypress/screenshots/
+            cypress/videos/
+            docker-compose.log
+
+      - name: Stop production stack
+        if: always()
+        continue-on-error: true
+        run: |
+          docker compose \
+            -f docker-compose.prod.yml \
+            down \
+            --volumes \
+            --remove-orphans

@@ -17,7 +17,9 @@
     "build:server": "npm run build --workspace=split-app-server",
     "build:client": "npm run build --workspace=split-app-client",
     "build": "npm run build:shared && npm run build:server && npm run build:client",
-    "typecheck": "npm run build:shared && npm run typecheck --workspace=split-app-server && npm run typecheck --workspace=split-app-client",
+    "typecheck": "npm run build:shared && tsc --noEmit --project server/tsconfig.json && tsc --noEmit --project client/tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test:e2e": "cypress run --e2e",
     "test:e2e:open": "cypress open --e2e",
     "migrate": "npm run migrate --workspace=split-app-server"

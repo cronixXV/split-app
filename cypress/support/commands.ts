@@ -103,8 +103,7 @@ Cypress.Commands.add('addMemberViaUi', (memberName: string) => {
 
   return cy
     .contains('[data-cy="member-item"]', memberName)
-    .should('be.visible')
-    .then(() => undefined);
+    .should('be.visible');
 });
 
 Cypress.Commands.add(
@@ -163,7 +162,9 @@ Cypress.Commands.add(
 
       expect(Number(requestBody.amount)).to.eq(amount);
 
-      expect(requestBody.paidBy).to.be.a('string').and.not.be.empty;
+      expect(requestBody.paidBy).to.be.a('string');
+
+      expect(requestBody.paidBy).not.to.equal('');
 
       expect(requestBody.split)
         .to.be.an('array')

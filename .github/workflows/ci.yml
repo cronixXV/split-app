@@ -100,7 +100,7 @@ jobs:
       - build
 
     env:
-      CI: 'true'
+      CI: "true"
       CYPRESS_BASE_URL: http://localhost
       COMPOSE_PROJECT_NAME: split-app-ci
 
@@ -117,7 +117,7 @@ jobs:
       RATE_LIMIT_MAX: 1000
 
       ROOM_TTL_DAYS: 30
-      CRON_CLEANUP_SCHEDULE: '0 3 * * *'
+      CRON_CLEANUP_SCHEDULE: "0 3 * * *"
 
     steps:
       - name: Checkout repository
@@ -128,9 +128,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-
-      - name: Check Cypress installation
-        run: npm ls cypress
 
       - name: Validate Docker Compose
         env:
@@ -150,6 +147,8 @@ jobs:
 
       - name: Wait for application
         shell: bash
+        env:
+          NODE_ENV: production
         run: |
           for attempt in {1..60}; do
             if curl \
@@ -183,13 +182,20 @@ jobs:
       - name: Run Cypress E2E
         uses: cypress-io/github-action@v7
         with:
-          install: false
+          working-directory: .
+          install-command: >-
+            npm ci
+            --include=dev
+            --workspaces
+            --include-workspace-root=true
           browser: electron
           summary-title: Split App E2E
 
       - name: Collect Docker logs
         if: always()
         continue-on-error: true
+        env:
+          NODE_ENV: production
         run: |
           docker compose \
             -f docker-compose.prod.yml \
@@ -212,6 +218,8 @@ jobs:
       - name: Stop production stack
         if: always()
         continue-on-error: true
+        env:
+          NODE_ENV: production
         run: |
           docker compose \
             -f docker-compose.prod.yml \

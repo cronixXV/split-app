@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -48,7 +48,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -60,20 +60,16 @@ jobs:
         run: npm ci
 
       - name: Run ESLint
-        run: npm run lint:ci
+        run: npm run lint
 
   build:
     name: Production Build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
-    needs:
-      - typecheck
-      - lint
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -99,6 +95,8 @@ jobs:
     timeout-minutes: 30
 
     needs:
+      - typecheck
+      - lint
       - build
 
     env:
@@ -124,7 +122,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

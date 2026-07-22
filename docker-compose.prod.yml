@@ -27,6 +27,11 @@ services:
       PORT: 3001
       NODE_ENV: production
       CLIENT_ORIGIN: ${CLIENT_ORIGIN}
+      LOG_LEVEL: ${LOG_LEVEL}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX}
+      ROOM_TTL_DAYS: ${ROOM_TTL_DAYS}
+      CRON_CLEANUP_SCHEDULE: ${CRON_CLEANUP_SCHEDULE}
     depends_on:
       postgres:
         condition: service_healthy
@@ -45,7 +50,7 @@ services:
         condition: service_started
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
       interval: 10s
       timeout: 5s
       retries: 3

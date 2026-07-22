@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: split-app-migrate
+  namespace: split-app
+  labels:
+    app.kubernetes.io/name: split-app-migrate
+    app.kubernetes.io/component: migration
+    app.kubernetes.io/part-of: split-app
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: split-app-migrate
+        app.kubernetes.io/component: migration
+        app.kubernetes.io/part-of: split-app
+
+    spec:
+      restartPolicy: Never
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+
+      containers:
+        - name: migrate
+          image: ghcr.io/egorgruzdev/split-app-server:latest
+          imagePullPolicy: Always
+
+          command:
+            - npm
+            - run
+            - migrate
+
+          envFrom:
+            - configMapRef:
+                name: split-app-config
+
+            - secretRef:
+                name: split-app-secrets
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi

@@ -1,21 +1,29 @@
 import 'reflect-metadata';
+
 import cors from 'cors';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 
+import { env, isProduction } from './infrastructure/config/env';
+import sequelize from './infrastructure/database/connection';
+import { shutdownState } from './infrastructure/runtime/shutdown-state';
+
 import { errorHandler, notFound } from './presentation/middleware';
 import { requestLogger } from './presentation/middleware/request-logger';
 import roomRoutes from './presentation/routes/room-routes';
-
-import { shutdownState } from './infrastructure/runtime/shutdown-state';
-import { env, isProduction } from './infrastructure/config/env';
 
 export function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
 
+  /*
+   * Перед Express находится ровно один reverse proxy:
+   *
+   * Docker Compose: Nginx -> Express
+   * k3s: Traefik -> Express
+   */
   app.set('trust proxy', 1);
 
   app.use(
@@ -29,13 +37,11 @@ export function createApp() {
       origin(origin, callback) {
         if (!origin) {
           callback(null, true);
-
           return;
         }
 
         if (env.CLIENT_ORIGIN.includes(origin)) {
           callback(null, true);
-
           return;
         }
 
@@ -66,20 +72,34 @@ export function createApp() {
   );
 
   app.get('/health', (_req, res) => {
-    const isShuttingDown = shutdownState.isShuttingDown();
-
-    res.status(isShuttingDown ? 503 : 200).json({
-      status: isShuttingDown ? 'shutting_down' : 'ok',
+    res.status(200).json({
+      status: 'ok',
       env: isProduction ? 'production' : env.NODE_ENV,
     });
   });
 
-  app.get('/ready', (_req, res) => {
-    const isShuttingDown = shutdownState.isShuttingDown();
+  app.get('/ready', async (_req, res) => {
+    if (shutdownState.isShuttingDown()) {
+      res.status(503).json({
+        ready: false,
+        reason: 'shutting_down',
+      });
 
-    res.status(isShuttingDown ? 503 : 200).json({
-      ready: !isShuttingDown,
-    });
+      return;
+    }
+
+    try {
+      await sequelize.authenticate();
+
+      res.status(200).json({
+        ready: true,
+      });
+    } catch {
+      res.status(503).json({
+        ready: false,
+        reason: 'database_unavailable',
+      });
+    }
   });
 
   app.use('/api/rooms', roomRoutes);

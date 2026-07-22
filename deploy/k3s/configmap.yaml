@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: split-app-config
+  namespace: split-app
+  labels:
+    app.kubernetes.io/name: split-app
+    app.kubernetes.io/part-of: split-app
+data:
+  NODE_ENV: production
+
+  PORT: "3001"
+  CLIENT_ORIGIN: "https://split.example.com"
+
+  LOG_LEVEL: info
+
+  RATE_LIMIT_WINDOW_MS: "900000"
+  RATE_LIMIT_MAX: "100"
+
+  ROOM_TTL_DAYS: "30"
+
+  POSTGRES_DB: splitapp
+  POSTGRES_USER: splitapp

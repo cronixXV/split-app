@@ -41,3 +41,6 @@ coverage/
 cypress/screenshots/
 cypress/videos/
 cypress/downloads/
+
+# Kubernetes secrets
+deploy/k3s/secret.yaml
